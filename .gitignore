@@ -2,3 +2,4 @@ dev.db
 nginx/access.log
 nginx/error.log
 nginx/nginx.pid
+node_modules/
