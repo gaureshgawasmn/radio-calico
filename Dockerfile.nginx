@@ -1,0 +1,4 @@
+FROM nginx:alpine
+COPY nginx/nginx.docker.conf /etc/nginx/nginx.conf
+COPY index.html app.js style.css utils.js RadioCalicoLogoTM.png /usr/share/nginx/html/
+EXPOSE 80

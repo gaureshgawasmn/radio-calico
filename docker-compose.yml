@@ -1,0 +1,29 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./api.py:/app/api.py
+      - db_data:/app/data
+    environment:
+      - DB_PATH=/app/data/dev.db
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8088:80"
+    volumes:
+      - ./nginx/nginx.docker.conf:/etc/nginx/nginx.conf:ro
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./app.js:/usr/share/nginx/html/app.js:ro
+      - ./style.css:/usr/share/nginx/html/style.css:ro
+      - ./utils.js:/usr/share/nginx/html/utils.js:ro
+      - ./RadioCalicoLogoTM.png:/usr/share/nginx/html/RadioCalicoLogoTM.png:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db_data:

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Utils Tests — Radio Calico</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body   { font-family: 'Courier New', monospace; background: #1a1e1a; color: #c8d8c8;
+             padding: 1.5rem; font-size: 14px; }
+    h1     { color: #38A29D; margin-bottom: 1.25rem; font-size: 1.1rem; letter-spacing: .05em; }
+    .suite { color: #EFA63C; margin: 1rem 0 .25rem; font-weight: bold; }
+    .pass  { color: #5bbf6e; padding-left: 1.5rem; }
+    .fail  { color: #e05555; padding-left: 1.5rem; }
+    .err   { color: #ff9933; font-size: .85em; padding-left: 3rem; margin-top: .1rem; }
+    .summary { margin-top: 1.5rem; font-size: 1rem; font-weight: bold; padding: .5rem .75rem;
+               display: inline-block; border-radius: 4px; }
+    .summary.all-pass { background: #1f4e23; color: #5bbf6e; }
+    .summary.has-fail { background: #4e1f1f; color: #e05555; }
+    hr { border: none; border-top: 1px solid #2e3e2e; margin: .75rem 0; }
+  </style>
+</head>
+<body>
+<h1>Radio Calico — utils.js unit tests</h1>
+<div id="out"></div>
+
+<script src="../utils.js"></script>
+<script>
+// ── Minimal test runner ──────────────────────────────────────────────────
+const out = document.getElementById('out');
+let passes = 0, fails = 0, _suite = '';
+
+function describe(name, fn) {
+  const hr = document.createElement('hr');
+  const h  = document.createElement('div');
+  h.className = 'suite';
+  h.textContent = name;
+  out.appendChild(hr);
+  out.appendChild(h);
+  _suite = name;
+  fn();
+}
+
+function it(name, fn) {
+  const el = document.createElement('div');
+  try {
+    fn();
+    passes++;
+    el.className = 'pass';
+    el.textContent = '✓ ' + name;
+  } catch (e) {
+    fails++;
+    el.className = 'fail';
+    el.textContent = '✗ ' + name;
+    const err = document.createElement('div');
+    err.className = 'err';
+    err.textContent = e.message;
+    el.appendChild(err);
+  }
+  out.appendChild(el);
+}
+
+function eq(a, b) {
+  if (a !== b)
+    throw new Error('expected ' + JSON.stringify(b) + ', got ' + JSON.stringify(a));
+}
+function ok(v, msg)    { if (!v) throw new Error(msg || 'expected truthy, got ' + JSON.stringify(v)); }
+function notOk(v, msg) { if (v)  throw new Error(msg || 'expected falsy, got '  + JSON.stringify(v)); }
+
+function mockEl(initialClasses) {
+  const classes = new Set(initialClasses || []);
+  return {
+    textContent: '',
+    disabled: false,
+    classList: {
+      toggle(cls, force) {
+        if (force === true)       classes.add(cls);
+        else if (force === false) classes.delete(cls);
+        else { if (classes.has(cls)) classes.delete(cls); else classes.add(cls); }
+      },
+      remove(cls) { classes.delete(cls); },
+      has(cls)    { return classes.has(cls); },
+    },
+  };
+}
+
+// ── truncate ─────────────────────────────────────────────────────────────
+describe('truncate', function () {
+  it('leaves short string unchanged',           function () { eq(truncate('hello', 10), 'hello'); });
+  it('leaves string at exactly max unchanged',  function () { eq(truncate('hello', 5),  'hello'); });
+  it('truncates and appends ellipsis',           function () { eq(truncate('hello world', 5), 'hell…'); });
+  it('result length equals max when truncated', function () {
+    var r = truncate('abcdefgh', 5);
+    ok(r.endsWith('…'));
+    eq(r.length, 5);
+  });
+  it('passes null through',      function () { eq(truncate(null,      10), null);      });
+  it('passes empty string through', function () { eq(truncate('',    10), '');         });
+  it('passes undefined through', function () { eq(truncate(undefined, 10), undefined); });
+  it('truncates when length is max+1', function () { eq(truncate('abcdef', 5), 'abcd…'); });
+});
+
+// ── fmtQuality ───────────────────────────────────────────────────────────
+describe('fmtQuality', function () {
+  it('returns dash when both null',      function () { eq(fmtQuality(null, null),      '—'); });
+  it('returns dash when both undefined', function () { eq(fmtQuality(undefined, undefined), '—'); });
+  it('returns dash when both zero',      function () { eq(fmtQuality(0, 0),            '—'); });
+  it('formats bit depth only',           function () { eq(fmtQuality(24, null),        '24 bit'); });
+  it('formats sample rate only',         function () { eq(fmtQuality(null, 44100),     '44.1 kHz'); });
+  it('formats both',                     function () { eq(fmtQuality(24, 44100),       '24 bit / 44.1 kHz'); });
+  it('formats 16-bit 44.1 kHz CD quality', function () { eq(fmtQuality(16, 44100),    '16 bit / 44.1 kHz'); });
+  it('formats 32-bit 192 kHz hi-res',    function () { eq(fmtQuality(32, 192000),      '32 bit / 192.0 kHz'); });
+  it('formats 48 kHz without bit depth', function () { eq(fmtQuality(null, 48000),     '48.0 kHz'); });
+});
+
+// ── fmtStreamLevel ───────────────────────────────────────────────────────
+describe('fmtStreamLevel', function () {
+  it('returns dash for null',         function () { eq(fmtStreamLevel(null),      '—'); });
+  it('returns dash for undefined',    function () { eq(fmtStreamLevel(undefined), '—'); });
+  it('returns dash for empty object', function () { eq(fmtStreamLevel({}),        '—'); });
+  it('formats bitrate only',          function () { eq(fmtStreamLevel({ bitrate: 320000 }), '320 kbps'); });
+  it('rounds bitrate to nearest kbps', function () { eq(fmtStreamLevel({ bitrate: 128500 }), '129 kbps'); });
+  it('maps mp4a.40.2 to AAC',         function () { eq(fmtStreamLevel({ audioCodec: 'mp4a.40.2', bitrate: 256000 }), 'AAC 256 kbps'); });
+  it('maps alac to ALAC',             function () { eq(fmtStreamLevel({ audioCodec: 'alac',      bitrate: 1000000 }), 'ALAC 1000 kbps'); });
+  it('maps ac-3 to AC-3',             function () { eq(fmtStreamLevel({ audioCodec: 'ac-3',      bitrate: 448000 }),  'AC-3 448 kbps'); });
+  it('maps ec-3 to E-AC-3',           function () { eq(fmtStreamLevel({ audioCodec: 'ec-3',      bitrate: 768000 }),  'E-AC-3 768 kbps'); });
+  it('formats FLAC codec',            function () { eq(fmtStreamLevel({ audioCodec: 'fLaC',      bitrate: 1411000 }), 'FLAC 1411 kbps'); });
+  it('uppercases unknown codec',      function () { eq(fmtStreamLevel({ audioCodec: 'opus',      bitrate: 128000 }),  'OPUS 128 kbps'); });
+  it('formats codec without bitrate', function () { eq(fmtStreamLevel({ audioCodec: 'mp4a.40.2' }), 'AAC'); });
+  it('splits codec on dot notation',  function () { eq(fmtStreamLevel({ audioCodec: 'mp4a.40.5' }), 'AAC'); });
+  it('treats zero bitrate as absent', function () { eq(fmtStreamLevel({ audioCodec: 'mp4a.40.2', bitrate: 0 }), 'AAC'); });
+});
+
+// ── escHtml ──────────────────────────────────────────────────────────────
+describe('escHtml', function () {
+  it('leaves plain text unchanged',         function () { eq(escHtml('Hello World'),        'Hello World'); });
+  it('escapes ampersand',                   function () { eq(escHtml('A & B'),              'A &amp; B'); });
+  it('escapes less-than',                   function () { eq(escHtml('<script>'),            '&lt;script&gt;'); });
+  it('escapes greater-than',                function () { eq(escHtml('a > b'),               'a &gt; b'); });
+  it('escapes double quotes',               function () { eq(escHtml('"hello"'),             '&quot;hello&quot;'); });
+  it('escapes all special chars together',  function () {
+    eq(escHtml('<a href="x&y">'), '&lt;a href=&quot;x&amp;y&quot;&gt;');
+  });
+  it('handles empty string',                function () { eq(escHtml(''), ''); });
+  it('escapes multiple ampersands',         function () { eq(escHtml('a & b & c'), 'a &amp; b &amp; c'); });
+});
+
+// ── applyRatingState ─────────────────────────────────────────────────────
+describe('applyRatingState', function () {
+  it('sets up and down counts on elements', function () {
+    var bU = mockEl(), bD = mockEl(), cU = mockEl(), cD = mockEl();
+    applyRatingState({ ups: 5, downs: 3, user_vote: null }, bU, bD, cU, cD);
+    eq(cU.textContent, 5);
+    eq(cD.textContent, 3);
+  });
+  it('adds voted-up class when user voted up', function () {
+    var bU = mockEl(), bD = mockEl(), cU = mockEl(), cD = mockEl();
+    applyRatingState({ ups: 1, downs: 0, user_vote: 'up' }, bU, bD, cU, cD);
+    ok(bU.classList.has('voted-up'));
+    notOk(bD.classList.has('voted-down'));
+  });
+  it('adds voted-down class when user voted down', function () {
+    var bU = mockEl(), bD = mockEl(), cU = mockEl(), cD = mockEl();
+    applyRatingState({ ups: 0, downs: 1, user_vote: 'down' }, bU, bD, cU, cD);
+    notOk(bU.classList.has('voted-up'));
+    ok(bD.classList.has('voted-down'));
+  });
+  it('removes voted-up when user_vote is null', function () {
+    var bU = mockEl(['voted-up']), bD = mockEl(), cU = mockEl(), cD = mockEl();
+    applyRatingState({ ups: 0, downs: 0, user_vote: null }, bU, bD, cU, cD);
+    notOk(bU.classList.has('voted-up'));
+  });
+  it('removes voted-down when user_vote is null', function () {
+    var bU = mockEl(), bD = mockEl(['voted-down']), cU = mockEl(), cD = mockEl();
+    applyRatingState({ ups: 0, downs: 0, user_vote: null }, bU, bD, cU, cD);
+    notOk(bD.classList.has('voted-down'));
+  });
+  it('enables both buttons', function () {
+    var bU = mockEl(), bD = mockEl(), cU = mockEl(), cD = mockEl();
+    bU.disabled = bD.disabled = true;
+    applyRatingState({ ups: 0, downs: 0, user_vote: null }, bU, bD, cU, cD);
+    eq(bU.disabled, false);
+    eq(bD.disabled, false);
+  });
+  it('clears voted-up when switching vote to down', function () {
+    var bU = mockEl(['voted-up']), bD = mockEl(), cU = mockEl(), cD = mockEl();
+    applyRatingState({ ups: 0, downs: 1, user_vote: 'down' }, bU, bD, cU, cD);
+    notOk(bU.classList.has('voted-up'));
+    ok(bD.classList.has('voted-down'));
+  });
+  it('handles zero counts', function () {
+    var bU = mockEl(), bD = mockEl(), cU = mockEl(), cD = mockEl();
+    applyRatingState({ ups: 0, downs: 0, user_vote: null }, bU, bD, cU, cD);
+    eq(cU.textContent, 0);
+    eq(cD.textContent, 0);
+  });
+});
+
+// ── resetRatings ─────────────────────────────────────────────────────────
+describe('resetRatings', function () {
+  it('sets counts to em dash', function () {
+    var bU = mockEl(), bD = mockEl(), cU = mockEl(), cD = mockEl();
+    cU.textContent = 5; cD.textContent = 3;
+    resetRatings(bU, bD, cU, cD);
+    eq(cU.textContent, '—');
+    eq(cD.textContent, '—');
+  });
+  it('removes voted-up class', function () {
+    var bU = mockEl(['voted-up']), bD = mockEl(), cU = mockEl(), cD = mockEl();
+    resetRatings(bU, bD, cU, cD);
+    notOk(bU.classList.has('voted-up'));
+  });
+  it('removes voted-down class', function () {
+    var bU = mockEl(), bD = mockEl(['voted-down']), cU = mockEl(), cD = mockEl();
+    resetRatings(bU, bD, cU, cD);
+    notOk(bD.classList.has('voted-down'));
+  });
+  it('disables both buttons', function () {
+    var bU = mockEl(), bD = mockEl(), cU = mockEl(), cD = mockEl();
+    resetRatings(bU, bD, cU, cD);
+    eq(bU.disabled, true);
+    eq(bD.disabled, true);
+  });
+  it('clears non-zero counts to em dash', function () {
+    var bU = mockEl(), bD = mockEl(), cU = mockEl(), cD = mockEl();
+    cU.textContent = 99; cD.textContent = 42;
+    resetRatings(bU, bD, cU, cD);
+    eq(cU.textContent, '—');
+    eq(cD.textContent, '—');
+  });
+});
+
+// ── Summary ──────────────────────────────────────────────────────────────
+var total = passes + fails;
+var summary = document.createElement('div');
+summary.className = 'summary ' + (fails ? 'has-fail' : 'all-pass');
+summary.textContent = passes + '/' + total + ' passed' + (fails ? ' — ' + fails + ' FAILED' : ' — all green');
+out.appendChild(summary);
+
+console.log('Tests: ' + passes + ' passed, ' + fails + ' failed, ' + total + ' total');
+if (fails > 0) console.error('SOME TESTS FAILED');
+</script>
+</body>
+</html>
