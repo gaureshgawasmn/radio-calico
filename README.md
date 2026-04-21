@@ -23,9 +23,10 @@ A web-based HLS audio streaming player with a crowdsourced song-rating system. A
 | Backend | Python `http.server` (stdlib only) |
 | Database | SQLite |
 | Web server | Nginx (static files + reverse proxy) |
+| Security | npm audit (via Docker) |
 | Fonts | Montserrat, Open Sans (Google Fonts) |
 
-No build steps. No package managers. No external runtime dependencies.
+No build steps. No runtime package manager. Security scanning uses `npm audit` via Docker — no local Node.js install required.
 
 ## Getting Started
 
@@ -51,6 +52,16 @@ Open **http://localhost:8088** in your browser.
 ```bash
 nginx -c /path/to/radiocalico/nginx/nginx.conf -s stop
 ```
+
+## Security
+
+Dependency vulnerabilities are scanned with `npm audit`. Docker is the only prerequisite — no local Node.js needed.
+
+```bash
+make security
+```
+
+This audits `package.json` (which declares the HLS.js CDN dependency) and exits non-zero on any moderate or higher vulnerability.
 
 ## Architecture
 
