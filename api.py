@@ -7,23 +7,44 @@ nginx must set X-Real-IP $remote_addr when proxying to this server.
 Endpoints:
   GET  /api/ratings?song=<title>          → {ups, downs, user_vote}
   POST /api/rate  body: {song, vote}      → {ups, downs, user_vote}
+
+Set DATABASE_URL (e.g. postgresql://user:pass@host/db) for PostgreSQL.
+Leave it unset to use SQLite via DB_PATH (default: dev.db beside this script).
 """
 import http.server
 import socketserver
-import sqlite3
 import json
 import hashlib
 import urllib.parse
 import os
 
-DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), 'dev.db'))
+DATABASE_URL = os.environ.get("DATABASE_URL")
 PORT = 8089
 
+if DATABASE_URL:
+    import psycopg2
+    import psycopg2.extras
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    def get_db():
+        return psycopg2.connect(DATABASE_URL)
+
+    def _execute(conn, sql, params=()):
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql.replace("?", "%s"), params)
+        return cur
+
+else:
+    import sqlite3
+
+    _DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "dev.db"))
+
+    def get_db():
+        conn = sqlite3.connect(_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _execute(conn, sql, params=()):
+        return conn.execute(sql, params)
 
 
 def user_id_from_request(handler):
@@ -37,7 +58,7 @@ def user_id_from_request(handler):
 
 
 def tally(conn, song):
-    row = conn.execute(
+    row = _execute(conn,
         """SELECT
              SUM(CASE WHEN vote='up'   THEN 1 ELSE 0 END) AS ups,
              SUM(CASE WHEN vote='down' THEN 1 ELSE 0 END) AS downs
@@ -81,7 +102,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         with get_db() as conn:
             ups, downs = tally(conn, song)
-            r = conn.execute(
+            r = _execute(conn,
                 "SELECT vote FROM ratings WHERE song=? AND user_id=?",
                 (song, user_id),
             ).fetchone()
@@ -108,7 +129,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._json({"error": "invalid input"}, 400); return
 
         with get_db() as conn:
-            existing = conn.execute(
+            existing = _execute(conn,
                 "SELECT vote FROM ratings WHERE song=? AND user_id=?",
                 (song, user_id),
             ).fetchone()
@@ -116,20 +137,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if existing:
                 if existing["vote"] == vote:
                     # Same button again → toggle off
-                    conn.execute(
+                    _execute(conn,
                         "DELETE FROM ratings WHERE song=? AND user_id=?",
                         (song, user_id),
                     )
                     user_vote = None
                 else:
                     # Switch vote
-                    conn.execute(
+                    _execute(conn,
                         "UPDATE ratings SET vote=? WHERE song=? AND user_id=?",
                         (vote, song, user_id),
                     )
                     user_vote = vote
             else:
-                conn.execute(
+                _execute(conn,
                     "INSERT INTO ratings (song, user_id, vote) VALUES (?,?,?)",
                     (song, user_id, vote),
                 )
@@ -143,11 +164,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 def init_db():
     with get_db() as conn:
-        conn.execute("""CREATE TABLE IF NOT EXISTS ratings (
+        _execute(conn, """CREATE TABLE IF NOT EXISTS ratings (
             song       TEXT NOT NULL,
             user_id    TEXT NOT NULL,
             vote       TEXT NOT NULL CHECK(vote IN ('up','down')),
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (song, user_id)
         )""")
         conn.commit()
