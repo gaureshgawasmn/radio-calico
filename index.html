@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Radio Calico</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+  <div class="widget">
+
+    <!-- Header -->
+    <header class="site-header">
+      <img class="header-logo" src="RadioCalicoLogoTM.png" alt="Radio Calico logo" />
+      <span class="header-title">Radio Calico</span>
+    </header>
+
+    <!-- Main content -->
+    <div class="main-content">
+
+      <!-- Now Playing -->
+      <div class="np-section">
+
+        <!-- Cover art -->
+        <div class="cover-col">
+          <div class="cover-wrap" id="coverWrap">
+            <img id="npCover" alt="Album art" />
+            <span class="year-badge" id="yearBadge"></span>
+          </div>
+        </div>
+
+        <!-- Track info -->
+        <div class="info-col">
+          <h1 class="artist-name" id="npArtist">—</h1>
+          <h2 class="track-title" id="npTitle">—</h2>
+          <p class="album-name" id="npAlbum">—</p>
+
+          <div class="quality-lines" id="qualityLines">
+            <div class="quality-line">Source quality: <span id="srcQuality">—</span></div>
+            <div class="quality-line">Stream quality: <span>HLS Lossless</span></div>
+          </div>
+
+          <div class="rate-section">
+            <span class="rate-label">Rate this track</span>
+            <button class="rate-btn" id="btnUp" disabled>
+              <span class="rate-icon">👍</span>
+              <span class="rate-count" id="countUp">—</span>
+            </button>
+            <button class="rate-btn" id="btnDown" disabled>
+              <span class="rate-icon">👎</span>
+              <span class="rate-count" id="countDown">—</span>
+            </button>
+          </div>
+
+          <!-- Controls bar (inside info column, below ratings) -->
+          <div class="controls-bar">
+            <div class="controls-top">
+              <button class="btn-play" id="playBtn" aria-label="Play">&#9654;</button>
+              <span class="vol-icon" id="volIcon">🔈</span>
+              <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8" />
+            </div>
+            <div class="volume-row">
+              <div class="status-pip" id="statusDot"></div>
+              <span class="status-label" id="statusText">Offline</span>
+              <div class="visualizer" id="visualizer"></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /np-section -->
+
+      <!-- Previous Tracks -->
+      <div class="previous-tracks">
+        <div class="previous-label">Previous tracks:</div>
+        <ul class="recent-list" id="recentList">
+          <li class="recent-item" style="color:#8aac8b; font-size:11px;">Loading…</li>
+        </ul>
+      </div>
+
+    </div><!-- /main-content -->
+  </div>
+
+  <audio id="audio"></audio>
+
+  <script src="app.js"></script>
+</body>
+</html>
