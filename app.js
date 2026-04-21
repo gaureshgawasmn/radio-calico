@@ -16,8 +16,9 @@ const yearBadge    = document.getElementById('yearBadge');
 const npArtist     = document.getElementById('npArtist');
 const npTitle      = document.getElementById('npTitle');
 const npAlbum      = document.getElementById('npAlbum');
-const srcQuality   = document.getElementById('srcQuality');
-const recentList   = document.getElementById('recentList');
+const srcQuality    = document.getElementById('srcQuality');
+const streamQuality = document.getElementById('streamQuality');
+const recentList    = document.getElementById('recentList');
 
 // ── Equalizer bars ──────────────────────────────────────────────────────
 const BAR_COUNT = 22;
@@ -70,6 +71,15 @@ function fmtQuality(bit_depth, sample_rate) {
   const khz = sample_rate ? (sample_rate / 1000).toFixed(1) + ' kHz' : '';
   const bit = bit_depth  ? bit_depth + ' bit' : '';
   return [bit, khz].filter(Boolean).join(' / ');
+}
+
+function fmtStreamLevel(level) {
+  if (!level) return '—';
+  const codecMap = { mp4a: 'AAC', alac: 'ALAC', 'ac-3': 'AC-3', 'ec-3': 'E-AC-3', fLaC: 'FLAC' };
+  const rawCodec = (level.audioCodec || '').split('.')[0].toLowerCase();
+  const codec = codecMap[rawCodec] || (rawCodec ? rawCodec.toUpperCase() : '');
+  const kbps = level.bitrate ? Math.round(level.bitrate / 1000) + ' kbps' : '';
+  return [codec, kbps].filter(Boolean).join(' ') || '—';
 }
 
 async function fetchMetadata() {
@@ -202,6 +212,12 @@ function setupHls() {
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       audio.volume = parseFloat(volumeSlider.value);
+      const lvl = hls.levels[hls.currentLevel >= 0 ? hls.currentLevel : 0];
+      streamQuality.textContent = fmtStreamLevel(lvl);
+    });
+
+    hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+      streamQuality.textContent = fmtStreamLevel(hls.levels[data.level]);
     });
 
     hls.on(Hls.Events.ERROR, (_, data) => {
@@ -210,6 +226,7 @@ function setupHls() {
         setEq(false);
         playing = false;
         playBtn.innerHTML = '&#9654;';
+        streamQuality.textContent = '—';
         // Fatal error: full teardown so the next play creates a fresh instance
         hls.destroy();
         hls = null;
