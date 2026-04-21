@@ -17,7 +17,7 @@ nginx -c /home/student/radiocalico/nginx/nginx.conf -s stop
 
 The UI is served at `http://localhost:8088`. Nginx proxies `/api/*` requests to the Python backend at `127.0.0.1:8089`.
 
-There are no build steps, package managers, or external dependencies for local dev — the backend uses only Python stdlib and the frontend loads HLS.js from CDN. Docker is available for containerised deployment (see below).
+There are no build steps or runtime package managers for local dev — the backend uses only Python stdlib and the frontend loads HLS.js from CDN. Docker is available for containerised deployment (see below). `npm` is used only for security scanning (see below).
 
 ## Architecture
 
@@ -40,6 +40,8 @@ There are no build steps, package managers, or external dependencies for local d
 - **`Dockerfile.nginx`** — Nginx Alpine image that bakes in static assets for production.
 - **`docker-compose.yml`** — Dev compose setup: mounts source files as volumes, exposes port `8088`.
 - **`docker-compose.prod.yml`** — Production compose setup: bakes assets into images, exposes port `80`, uses a named volume `db_data` for the SQLite file.
+- **`package.json`** / **`package-lock.json`** — Declares `hls.js` as a dependency so `npm audit` has a dependency graph to scan. Not used at runtime.
+- **`Makefile`** — `make security` runs `npm audit` inside a Docker container. Also has targets for dev, prod, and test workflows.
 
 ### Key Data Flows
 
@@ -90,9 +92,18 @@ bash tests/run_tests.sh
 
 Open `http://localhost:8088/tests/test_utils.html` while nginx is running. The page runs all `utils.js` unit tests inline and shows a pass/fail summary.
 
+## Security Scanning
+
+```bash
+make security
+```
+
+Runs `npm audit --audit-level=moderate` inside a `node:18-alpine` Docker container. No local Node.js required. Exits non-zero on moderate or higher vulnerabilities.
+
+`package.json` pins `hls.js` at a specific version so audit results are reproducible. Update the version there (and regenerate `package-lock.json` via `docker run --rm -v $(pwd):/app -w /app node:18-alpine npm install`) whenever the CDN version in `index.html` is bumped.
+
 ## Branding (from `RadioCalico_Style_Guide.txt`)
 
 - **Colors**: Mint `#D8F2D5`, Forest Green `#1F4E23`, Teal `#38A29D`, Orange `#EFA63C`, Charcoal `#231F20`
 - **Fonts**: Montserrat (headings), Open Sans (body)
 - **Voice**: Friendly, trustworthy, no-nonsense — ad-free, data-free, subscription-free
-

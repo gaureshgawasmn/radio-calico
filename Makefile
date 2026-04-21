@@ -1,4 +1,4 @@
-.PHONY: dev dev-down prod prod-down test test-backend test-frontend logs-dev logs-prod
+.PHONY: dev dev-down prod prod-down test test-backend test-frontend logs-dev logs-prod security
 
 # ── Dev (SQLite, hot-reload via volume mounts, port 8088) ──────────────────────
 dev:
@@ -30,3 +30,13 @@ logs-dev:
 
 logs-prod:
 	docker compose -f docker-compose.prod.yml logs -f
+
+# ── Security ───────────────────────────────────────────────────────────────────
+# Runs npm audit inside a Docker container — no local Node.js install needed.
+# Exits non-zero if any vulnerability at the configured level is found.
+security:
+	docker run --rm \
+	  -v $(CURDIR):/app \
+	  -w /app \
+	  node:18-alpine \
+	  npm audit --audit-level=moderate

@@ -23,10 +23,11 @@ A web-based HLS audio streaming player with a crowdsourced song-rating system. A
 | Backend | Python `http.server` (stdlib only) |
 | Database | SQLite |
 | Web server | Nginx (static files + reverse proxy) |
-| Fonts | Montserrat, Open Sans (Google Fonts) |
 | Containers | Docker + Docker Compose (optional) |
+| Security | npm audit (via Docker) |
+| Fonts | Montserrat, Open Sans (Google Fonts) |
 
-No build steps. No package managers. No external runtime dependencies for local dev.
+No build steps. No runtime package manager for local dev. Security scanning uses `npm audit` via Docker — no local Node.js install required.
 
 ## Getting Started
 
@@ -62,6 +63,16 @@ docker compose up
 # Production — bakes assets into images, port 80
 docker compose -f docker-compose.prod.yml up --build
 ```
+
+## Security
+
+Dependency vulnerabilities are scanned with `npm audit`. Docker is the only prerequisite — no local Node.js needed.
+
+```bash
+make security
+```
+
+This audits `package.json` (which declares the HLS.js CDN dependency) and exits non-zero on any moderate or higher vulnerability.
 
 ## Architecture
 
