@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+dev.db
+nginx/nginx.pid
+nginx/access.log
+nginx/error.log
+tests/
+.github/
+RadioCalicoStyle.zip
+RadioCalicoLayout.png
+RadioCalico_Style_Guide.txt
+stream_URL.txt
+public/

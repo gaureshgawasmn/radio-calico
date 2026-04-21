@@ -24,8 +24,9 @@ A web-based HLS audio streaming player with a crowdsourced song-rating system. A
 | Database | SQLite |
 | Web server | Nginx (static files + reverse proxy) |
 | Fonts | Montserrat, Open Sans (Google Fonts) |
+| Containers | Docker + Docker Compose (optional) |
 
-No build steps. No package managers. No external runtime dependencies.
+No build steps. No package managers. No external runtime dependencies for local dev.
 
 ## Getting Started
 
@@ -34,7 +35,7 @@ No build steps. No package managers. No external runtime dependencies.
 - Python 3
 - Nginx
 
-### Run
+### Run locally
 
 ```bash
 # Start the ratings API on port 8089
@@ -52,12 +53,22 @@ Open **http://localhost:8088** in your browser.
 nginx -c /path/to/radiocalico/nginx/nginx.conf -s stop
 ```
 
+### Run with Docker
+
+```bash
+# Development — mounts source files as volumes, port 8088
+docker compose up
+
+# Production — bakes assets into images, port 80
+docker compose -f docker-compose.prod.yml up --build
+```
+
 ## Architecture
 
 ```
 Browser
   │
-  ├─ GET /              → Nginx serves index.html, style.css, app.js
+  ├─ GET /              → Nginx serves index.html, style.css, app.js, utils.js
   ├─ GET /api/ratings   → Nginx proxies → Python API (port 8089)
   ├─ POST /api/rate     → Nginx proxies → Python API (port 8089)
   │
@@ -87,6 +98,20 @@ CREATE TABLE ratings (
 ```
 
 User identity is a SHA-256 hash of the client IP — no accounts, no tracking.
+
+## Testing
+
+### Backend
+
+```bash
+python3 -m unittest discover -s tests -p "test_api.py" -v
+```
+
+Tests cover `tally()`, `user_id_from_request()`, and full HTTP round-trips (vote, toggle, switch, validation) via a real in-process server and temp SQLite DB.
+
+### Frontend
+
+With nginx running, open **http://localhost:8088/tests/test_utils.html** in a browser. The page executes all `utils.js` unit tests and shows a pass/fail summary.
 
 ## Branding
 
