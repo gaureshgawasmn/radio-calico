@@ -36,10 +36,10 @@ if DATABASE_URL:
 else:
     import sqlite3
 
-    _DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "dev.db"))
+    DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "dev.db"))
 
     def get_db():
-        conn = sqlite3.connect(_DB_PATH)
+        conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         return conn
 
