@@ -16,7 +16,7 @@ import hashlib
 import urllib.parse
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'dev.db')
+DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), 'dev.db'))
 PORT = 8089
 
 
