@@ -141,7 +141,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._json({"ups": ups, "downs": downs, "user_vote": user_vote})
 
 
+def init_db():
+    with get_db() as conn:
+        conn.execute("""CREATE TABLE IF NOT EXISTS ratings (
+            song       TEXT NOT NULL,
+            user_id    TEXT NOT NULL,
+            vote       TEXT NOT NULL CHECK(vote IN ('up','down')),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (song, user_id)
+        )""")
+        conn.commit()
+
+
 if __name__ == "__main__":
+    init_db()
     socketserver.ThreadingTCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer(("", PORT), Handler) as srv:
         print(f"Ratings API on :{PORT}")
