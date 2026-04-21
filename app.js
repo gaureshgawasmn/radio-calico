@@ -33,6 +33,9 @@ for (let i = 0; i < BAR_COUNT; i++) {
   bars.push(b);
 }
 
+// utils.js (loaded before this script) provides: truncate, fmtQuality,
+// fmtStreamLevel, escHtml, applyRatingState, resetRatings
+
 // ── Status ───────────────────────────────────────────────────────────────
 function setStatus(state) {
   statusDot.className  = 'status-pip '   + state;
@@ -62,26 +65,6 @@ function reloadCover() {
 // ── Metadata ─────────────────────────────────────────────────────────────
 let lastTitle = null;
 
-function truncate(str, max) {
-  return str && str.length > max ? str.slice(0, max - 1) + '…' : str;
-}
-
-function fmtQuality(bit_depth, sample_rate) {
-  if (!bit_depth && !sample_rate) return '—';
-  const khz = sample_rate ? (sample_rate / 1000).toFixed(1) + ' kHz' : '';
-  const bit = bit_depth  ? bit_depth + ' bit' : '';
-  return [bit, khz].filter(Boolean).join(' / ');
-}
-
-function fmtStreamLevel(level) {
-  if (!level) return '—';
-  const codecMap = { mp4a: 'AAC', alac: 'ALAC', 'ac-3': 'AC-3', 'ec-3': 'E-AC-3', fLaC: 'FLAC' };
-  const rawCodec = (level.audioCodec || '').split('.')[0].toLowerCase();
-  const codec = codecMap[rawCodec] || (rawCodec ? rawCodec.toUpperCase() : '');
-  const kbps = level.bitrate ? Math.round(level.bitrate / 1000) + ' kbps' : '';
-  return [codec, kbps].filter(Boolean).join(' ') || '—';
-}
-
 async function fetchMetadata() {
   try {
     const res  = await fetch(METADATA_URL + '?_=' + Date.now());
@@ -95,7 +78,8 @@ async function fetchMetadata() {
     lastTitle = title;
 
     reloadCover();
-    resetRatings();
+    currentSong = null;
+    resetRatings(btnUp, btnDown, countUp, countDown);
     currentSong = title;
     fetchRatings(title);
 
@@ -145,10 +129,6 @@ async function fetchMetadata() {
   } catch (_) {}
 }
 
-function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
 // ── Ratings ──────────────────────────────────────────────────────────────
 const btnUp     = document.getElementById('btnUp');
 const btnDown   = document.getElementById('btnDown');
@@ -156,26 +136,10 @@ const countUp   = document.getElementById('countUp');
 const countDown = document.getElementById('countDown');
 let   currentSong = null;
 
-function applyRatingState({ ups, downs, user_vote }) {
-  countUp.textContent   = ups;
-  countDown.textContent = downs;
-  btnUp.classList.toggle('voted-up',    user_vote === 'up');
-  btnDown.classList.toggle('voted-down', user_vote === 'down');
-  btnUp.disabled = btnDown.disabled = false;
-}
-
-function resetRatings() {
-  currentSong = null;
-  countUp.textContent = countDown.textContent = '—';
-  btnUp.classList.remove('voted-up');
-  btnDown.classList.remove('voted-down');
-  btnUp.disabled = btnDown.disabled = true;
-}
-
 async function fetchRatings(song) {
   try {
     const res = await fetch(`/api/ratings?song=${encodeURIComponent(song)}`);
-    if (res.ok) applyRatingState(await res.json());
+    if (res.ok) applyRatingState(await res.json(), btnUp, btnDown, countUp, countDown);
   } catch (_) {}
 }
 
@@ -188,7 +152,7 @@ async function castVote(vote) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ song: currentSong, vote }),
     });
-    if (res.ok) applyRatingState(await res.json());
+    if (res.ok) applyRatingState(await res.json(), btnUp, btnDown, countUp, countDown);
     else btnUp.disabled = btnDown.disabled = false;
   } catch (_) { btnUp.disabled = btnDown.disabled = false; }
 }
